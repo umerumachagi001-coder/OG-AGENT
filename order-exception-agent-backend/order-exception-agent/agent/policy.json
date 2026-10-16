@@ -1,0 +1,20 @@
+{
+  "_comment": "Edit freely (FR-11). Anything not listed under auto_execute needs a human. Costs in INR.",
+  "auto_execute": {
+    "reallocate_stock":  { "max_extra_cost": 200 },
+    "retry_payment":     { "max_attempts": 2, "fraud_score_below": 0.3 },
+    "expedite_shipping": { "max_cost": 500 },
+    "notify_customer":   {},
+    "hold_order":        {}
+  },
+  "always_escalate": ["switch_supplier", "apply_price_correction", "release_order", "refund"],
+  "escalate_if": {
+    "customer_tier": ["VIP"],
+    "order_value_above": 50000,
+    "confidence_below": 0.7,
+    "fraud_score_above": 0.5,
+    "option_risk": ["high"]
+  },
+  "max_option_cost": 1000,
+  "containment_allowed": ["hold_order"]
+}
