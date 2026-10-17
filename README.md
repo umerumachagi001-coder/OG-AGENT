@@ -130,7 +130,7 @@ Everything works without changes. Fill in only what you want:
 | `OEA_ENGINE` | `n8n` (default) or `python` (built-in engine, no n8n). |
 | `SUPABASE_PUBLISHABLE_KEY` | Dashboard sign-in with Supabase accounts. |
 | `SUPABASE_SECRET_KEY` | Copies every case record to your Supabase project. Backend only; never commit it. |
-| `SARVAM_API_KEY` | Voice assistant: a mic button to ask about cases by voice in English or Hindi (Sarvam AI). |
+| `SARVAM_API_KEY` | Optional upgrade for the voice assistant: English + Hindi through Sarvam AI. Without it, voice uses the browser (English, no key). |
 
 Supabase setup (run the SQL, keys, creating accounts): [`supabase/README.md`](supabase/README.md).
 
@@ -163,9 +163,10 @@ On your first visit to n8n, it asks you to **create an owner account**. This is 
 2. **Trigger a failure** → **Supplier misses ship date** → **Approvals** → **Approve**. The paused n8n run resumes and executes the fix.
 3. Open an automatically fixed case and click **Undo this fix** to reverse it.
 4. Watch the runs in n8n under **Executions**.
-5. **Reset demo** restores the clean starting state.
+5. **Audit trail** → **Download PDF** → in the print window choose **Save as PDF**. The report has a summary, one section per case (cause, who decided, actions, money spent, full timeline) and the order systems' action log. It follows the page's filter.
+6. **Reset demo** restores the clean starting state.
 
-**Voice (if `SARVAM_API_KEY` is set):** click **Ask** in the top bar and say "What needs my attention?", "Explain order 1002", "Approve order 1002" or "How are we doing?", in English or Hindi. It answers out loud from the live case data. Voice can open a case for approval but never approves: you confirm on screen. The browser asks for microphone permission the first time.
+**Voice (Chrome or Edge, no key needed):** click **Ask** in the top bar and say "What needs my attention?". It answers out loud from the live case data, then asks a follow-up ("Would you like me to explain ORD-1002?") and listens for your reply: "yes", "why", "next one", "approve it" or "no thanks". You can also type. Voice can open a case for approval but never approves: you confirm on screen. The browser asks for microphone permission the first time, and speech recognition needs internet. With a working `SARVAM_API_KEY` it uses Sarvam instead (English + Hindi); check a key with `python scripts/check_sarvam.py` (never prints the key).
 
 Or drive it from a terminal while the stack is running:
 
@@ -213,7 +214,7 @@ python -m uvicorn orchestrator.app:app --port 8001 --reload     # second termina
 python -m pytest services/tests agent/tests orchestrator/tests n8n/test_policy_parity.py -q
 ```
 
-41 tests cover the mock systems, every scenario, the agent and its fallback, the orchestrator API, undo, Supabase sign-in and record copying (simulated), the n8n bridge, and a check that n8n's policy node and the Python policy agree on 400 random cases.
+52 tests cover the mock systems, every scenario, the agent and its fallback, the orchestrator API, undo, Supabase sign-in and record copying (simulated), the voice assistant and its conversation (Sarvam simulated), the n8n bridge, and a check that n8n's policy node and the Python policy agree on 400 random cases.
 
 End to end through real n8n (with `python scripts/dev.py` running in another terminal):
 
@@ -233,11 +234,11 @@ python n8n/e2e_check.py             # (with Supabase sign-in on, start with OEA_
 │   └── e2e_check.py        end-to-end check through real n8n
 ├── services/               mock company systems (:8000) and detector/ rules
 ├── agent/                  investigation (Claude + rule playbooks), policy engine, policy.json, undo
-├── orchestrator/           dashboard API (:8001), the /n8n bridge, Supabase sign-in + record copy (auth_api.py)
+├── orchestrator/           dashboard API (:8001), the /n8n bridge, Supabase sign-in + record copy (auth_api.py), voice (voice_api.py)
 ├── supabase/               schema.sql to run in the Supabase SQL Editor, setup guide
 ├── dashboard/              React + Vite + Tailwind UI
 ├── data/                   database schema and deterministic seed (50 orders)
-├── scripts/                dev.py (start everything), demo_scenario.py, wait_ready.py
+├── scripts/                dev.py (start everything), demo_scenario.py, wait_ready.py, check_sarvam.py
 ├── docs/                   architecture, decisions, demo script, requirements, progress
 └── run-demo.bat            one-click start on Windows
 ```
@@ -267,7 +268,7 @@ The approval policy lives in **`agent/policy.json`**: edit it to change which fi
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Components, APIs, data model, scenarios, policy |
 | [`n8n/README.md`](n8n/README.md) | Every workflow node, settings, changing a workflow |
 | [`BACKEND.md`](BACKEND.md) | Backend files and endpoints |
-| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Design decisions (ADR-001 to ADR-012) |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Design decisions (ADR-001 to ADR-015) |
 | [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) | The 5-minute demo, click by click, with judge Q&A |
 
 ## Team

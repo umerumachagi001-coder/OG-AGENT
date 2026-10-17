@@ -14,6 +14,7 @@
 | ☐ | "Approving as" box says your name (e.g. *Ruhaan, Ops lead*) |
 | ☐ | Browser zoom 110–125% for the projector; notifications off; laptop on charge |
 | ☐ | If `ANTHROPIC_API_KEY` is set, sidebar says **Diagnosis by Claude**; if not, **rule playbook** (both work) |
+| ☐ | Voice: Chrome or Edge, laptop online, mic allowed once (click **Ask**, say "hello", close). Laptop mic, not the projector's |
 
 SC-1 and SC-5 both use ORD-1001. **Reset demo** between them.
 
@@ -55,15 +56,22 @@ SC-1 and SC-5 both use ORD-1001. **Reset demo** between them.
 **Point at:** **High** severity; order **put on hold straight away**; no retry; waiting for a person.
 **Say:** "Three declines in four minutes, fraud score 0.91, IP in another country. It doesn't retry the card. It freezes the order and asks a human. Compare an expired card: there it just emails the customer."
 
+### 6b. Ask it out loud (40 s)
+**Click:** **Ask** (top bar). **Say:** "What needs my attention?"
+It answers from live data and asks back: *"Would you like me to explain ORD-…?"* → **say** "yes" → it explains and asks *"Shall I open it so you can approve the fix?"* → **say** "why" → it gives the policy reasons → **say** "no thanks".
+**Say:** "Same data, hands-free. It can open a case, but it can never approve: that's always a click by a person."
+*If the mic or Wi-Fi misbehaves:* type the same question in the box under the answer. Same spoken reply.
+
 ### 7. Impact (30 s)
 **Click:** **Overview** → **Impact** panel.
 **Say the live numbers**, e.g.: "57% of cases fixed with no person; 30 seconds on average versus 15 minutes when a person is involved; 2.6 hours of analyst time saved on 14 cases, at an assumed 20 minutes per case by hand; ₹1.78 lakh of orders protected for about ₹6,000 in fix costs." (Includes the 12 seeded past cases. The panel says so.)
 
 ### 8. Close (30 s)
 **Click:** **Audit trail**.
-**Say:** "Every check, every policy decision, every approval: who, what, when, why. The AI only reads; it can't change anything. Code re-checks its costs. Rules decide what needs a human. And any automatic fix can be undone in one click. Next: real ERP and payment connectors, and learning from approved fixes."
+**Click:** **Download PDF** → the print window shows the report (summary, each case, the action log). Close it, or **Save as PDF** to hand to judges.
+**Say:** "Every check, every policy decision, every approval: who, what, when, why. And it exports as a report for compliance. The AI only reads; it can't change anything. Code re-checks its costs. Rules decide what needs a human. And any automatic fix can be undone in one click. Next: real ERP and payment connectors, and learning from approved fixes."
 
-**Timing check:** 30 + 20 + 60 + 60 + 30 + 30 + 30 + 30 = **4 min 50 s**.
+**Timing check:** 30 + 20 + 60 + 60 + 30 + 30 + 40 + 30 + 40 = **5 min 40 s**. Short on time? Skip step 5 (n8n tab) or 6 (fraud): back to ~5 min.
 
 ---
 
@@ -77,6 +85,7 @@ SC-1 and SC-5 both use ORD-1001. **Reset demo** between them.
 | "Can it overspend?" | Policy limits: e.g. stock moves ≤ ₹200 extra, shipping upgrades ≤ ₹500, any option ≤ ₹1,000; supplier switches, price changes and refunds always need a person; VIP or > ₹50,000 orders always escalate. Show `agent/policy.json`. |
 | "Is the data real?" | Mock company systems (orders, stock, suppliers, payments, pricing, delivery) with real API contracts. Swapping in real systems means replacing those endpoints, not the workflow. |
 | "Why n8n?" | The process is visible and editable by ops, not hidden in code; approvals pause and resume natively; Slack ping built in. |
+| "Can voice approve things?" | No. Voice is read-only: "approve order 1002" opens the case and asks you to press Approve. Show it. |
 | "Can a judge try it?" | Yes: hand them the mouse. **Trigger a failure** → any of the six; **Reset demo** first if they pick SC-1 or SC-5. |
 
 ---
@@ -89,6 +98,7 @@ SC-1 and SC-5 both use ORD-1001. **Reset demo** between them.
 | Sidebar says n8n is down | Keep going in Python mode: stop, run `python scripts/dev.py --python`. Same screens, no n8n tab. |
 | A case sits on "Investigating" > 10 s | **Reset demo** and trigger it again. (If it shows "The automation stopped", click **Investigate again**.) |
 | Approve shows "no result yet" | Open the n8n **Executions** tab; the run is there. Reset demo before the next scenario. |
+| Voice doesn't hear / says it needs internet | Type the question in the voice panel's box; the answer is still spoken. |
 | Laptop or projector fails | Play the backup video (`demo/backup.mp4`). Record it after the final rehearsal. |
 
 ## Reference: all scenarios

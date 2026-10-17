@@ -5,10 +5,16 @@
 
 ## Current status
 - **Phase:** rebuilt as an n8n automation (ADR-009). `python scripts/dev.py` starts n8n + backend + dashboard; every scenario passes through real n8n
-- **Next up:** fill team names in the pitch deck (claude.ai artifact "OrderGuard AI pitch deck"); run with a real `ANTHROPIC_API_KEY` in n8n; first run on the team laptops (n8n download needs Node 20–24); set up the n8n owner login; optional Slack webhook; rehearse `docs/DEMO_SCRIPT.md` ×3 and record the backup video
+- **Next up:** fill team names (README, deck); rehearse `docs/DEMO_SCRIPT.md` ×3 (now with voice + PDF) and record the backup video; optional: real `ANTHROPIC_API_KEY`, working Sarvam key for Hindi, Slack webhook
 - **Blockers:** Claude path tested only against a stand-in Anthropic server. Names for P1–P4 and organiser questions still open
 
 ---
+
+## 2026-10-17 (evening) — Browser voice with conversation, audit PDF (ADR-015) · `safe-point-3`
+- Sarvam key rejected by Sarvam (403); `scripts/check_sarvam.py` confirmed the key itself was the cause. Voice now works without a key (browser speech, English) via `POST /voice/text`, with follow-up questions and context ("yes", "why", "next one", "approve it", "no thanks"). Sarvam stays optional with automatic fallback.
+- Audit trail → **Download PDF** (`dashboard/src/auditReport.js`): summary, per-case sections, action log; follows the filter.
+- 6-slide PowerPoint deck made (solution, architecture, authorization framework, data flow, dashboard, 24-hour MVP).
+- n8n owner login reset (`npx.cmd n8n user-management:reset`). 52 tests pass; both features confirmed on the Windows laptop. Commit `098b7bb`, tag `safe-point-3`.
 
 ## 2026-10-17 — Hackathon day: repo, Supabase live, voice assistant (ADR-014)
 - GitHub repo cleaned up: complete project at the root, old copies removed (tags `safe-point-1`, `safe-point-2`). Parity test fixed for Windows encoding. 45 tests passed on the Windows laptop.
