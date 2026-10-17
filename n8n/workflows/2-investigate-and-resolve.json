@@ -1,0 +1,1266 @@
+{
+  "id": "oeaInvestigate01",
+  "name": "OEA 2 · Investigate and resolve",
+  "active": false,
+  "nodes": [
+    {
+      "id": "b76eb970-d567-530a-b5ad-be3016e5994e",
+      "name": "About",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ],
+      "parameters": {
+        "content": "## Investigate and resolve one exception\n1. Claim it\n2. Check the systems that matter for this kind of problem\n3. Ask Claude for the root cause and 1–3 ranked fixes (rule playbook if Claude is off or fails)\n4. Apply the approval policy (`agent/policy.json`)\n5. Hold the order if it must not move\n6. Fix it automatically, **or** ping a person and wait for the dashboard's Approve / Reject",
+        "width": 560,
+        "height": 260,
+        "color": 7
+      }
+    },
+    {
+      "id": "66254d0e-aefb-587a-9175-21bb6c1340fb",
+      "name": "From detector",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "7fd2deed-a45d-5555-a078-f0f6e1162d96",
+      "name": "Re-investigate (webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "oea-investigate",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "b377c226-1cd8-5fae-b668-43a6702f71ae"
+    },
+    {
+      "id": "acc1f404-5620-5872-91d2-13d6796450c9",
+      "name": "Read exception id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const b = $input.first().json.body || {};\nreturn [{ json: { id: Number(b.id) } }];"
+      }
+    },
+    {
+      "id": "4590fd81-a1bb-5e4d-b4e0-65d2322ad6b8",
+      "name": "Claim exception",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $json.id }}/start",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "602cc62f-bd2a-5826-802e-307591e0a221",
+      "name": "Not already handled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "efea9fa4-6869-5dce-a7ad-16cd39510fd6",
+              "leftValue": "={{ $json.claimed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "82f99faf-0b25-578e-b18a-868002231f75",
+      "name": "Which systems to check?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 4,
+        "output": "={{ ({inventory: 0, supplier: 1, deadline: 1, payment: 2, pricing: 3})[$json.domain] ?? 1 }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "13ad56a5-9c6d-5132-a5d0-ec769cc8a55b",
+      "name": "Each SKU",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        -300
+      ],
+      "parameters": {
+        "fieldToSplitOut": "skus",
+        "destinationFieldName": "sku",
+        "options": {}
+      }
+    },
+    {
+      "id": "aa83a8b0-e273-53b2-b952-6f42b6e42a9a",
+      "name": "Check stock",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        -300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/tool",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tool: 'check_inventory', input: { sku: $json.sku || $json.skus } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "5bba4781-b0fd-5b10-9256-32f7ad5032f7",
+      "name": "Check delivery promise",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        -300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/tool",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tool: 'get_sla', input: { order_id: $('Claim exception').first().json.order_id } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "bc1d4664-be47-53f7-a521-48a089b5dcad",
+      "name": "Check delivery date",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        -120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/tool",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tool: 'get_sla', input: { order_id: $('Claim exception').first().json.order_id } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "b13499e5-7ce8-5bb2-a0f1-00a56286ce7e",
+      "name": "Check supplier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        -120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/tool",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tool: 'get_supplier_status', input: { order_id: $('Claim exception').first().json.order_id } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "2abc4c77-7078-56a5-83b4-977e36d4e6cf",
+      "name": "Check payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        60
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/tool",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tool: 'get_payment_status', input: { order_id: $('Claim exception').first().json.order_id } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "89a5406f-21c9-5cbb-8586-f426806d38b8",
+      "name": "Check pricing rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/tool",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tool: 'get_pricing_rules', input: { order_id: $('Claim exception').first().json.order_id } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "3106d580-fe0a-5fb1-9738-c53681fd9a18",
+      "name": "Look up past cases",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/tool",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tool: 'find_similar_cases', input: { domain: $('Claim exception').first().json.domain, symptom: $('Claim exception').first().json.symptom } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "11e07769-4905-5a6d-a448-42827f358fe2",
+      "name": "Build Claude request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/llm-request",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "9ac4e8ce-5aa5-5a10-bc56-e14ec48f7154",
+      "name": "Claude switched on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2400,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f7beb302-23c9-56cb-bb96-3617451ab485",
+              "leftValue": "={{ $json.enabled }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "a9f0b9ac-46f6-5efa-a43b-bdddb3d5b6dc",
+      "name": "Ask Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.OEA_ANTHROPIC_URL || 'https://api.anthropic.com') + '/v1/messages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f3f1c424-1828-5edd-a221-fd902ce7aafc",
+      "name": "Read Claude's answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "// Pull the structured diagnosis out of Claude's reply (forced submit_resolution tool call).\nconst r = $input.first().json;\nconst block = (r.content || []).find((b) => b.type === 'tool_use' && b.name === 'submit_resolution');\nconst thoughts = (r.content || []).filter((b) => b.type === 'text').map((b) => b.text);\nif (!block) {\n  const why = r.error ? (r.error.message || JSON.stringify(r.error)) : 'Claude returned no diagnosis';\n  return [{ json: { ok: false, reason: `Claude unavailable: ${why}`.slice(0, 300) } }];\n}\nreturn [{ json: { ok: true, source: 'llm', resolution: { ...block.input, thoughts } } }];\n"
+      }
+    },
+    {
+      "id": "bd2504f3-6cce-5a95-ba8a-8439ff233572",
+      "name": "Claude answered?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3120,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f19e8316-a4fd-5319-96ef-b432d4723845",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "486aff01-2467-5848-9eb1-65559fedd9be",
+      "name": "Rule playbook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        140
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/playbook?reason={{ encodeURIComponent($json.reason || '') }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "7739dafa-e561-5433-981d-41ac4253d266",
+      "name": "Check and record diagnosis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3360,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/prepare",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ resolution: $json.resolution, source: $json.source || 'rules' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "4a60f7ff-40c0-5705-8e37-530ac0a824b1",
+      "name": "Diagnosis valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3600,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "01cca32a-4203-59ab-a27a-753eefa578fb",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "61cb91da-3b25-5541-a84b-b62015f7b85f",
+      "name": "Apply approval policy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        -60
+      ],
+      "parameters": {
+        "jsCode": "// Approval policy engine — runs inside the n8n Code node \"Apply approval policy\".\n// Rules come from agent/policy.json (sent by the bridge in $json.policy), so ops can change limits\n// without touching the workflow. Mirrors agent/policy.py exactly; n8n/test_policy_parity.py checks that.\n\nconst fmt = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');\n\nfunction evaluate(option, ctx, p) {\n  const auto = p.auto_execute || {};\n  const always = new Set(p.always_escalate || []);\n  const esc = p.escalate_if || {};\n  const reasons = [];\n  const checks = [];\n  const steps = option.steps || [];\n  if (!steps.length) reasons.push('option has no executable steps');\n\n  const tier = ctx.customer_tier;\n  if ((esc.customer_tier || []).includes(tier)) reasons.push(`customer tier is ${tier}`);\n  const value = ctx.order_value || 0;\n  if ('order_value_above' in esc) {\n    if (value > esc.order_value_above) reasons.push(`order value ₹${fmt(value)} > ₹${fmt(esc.order_value_above)}`);\n    else checks.push(`order value ₹${fmt(value)} ≤ ₹${fmt(esc.order_value_above)}`);\n  }\n  const conf = ctx.confidence;\n  if (conf !== undefined && conf !== null && 'confidence_below' in esc) {\n    if (conf < esc.confidence_below) reasons.push(`confidence ${conf.toFixed(2)} < ${esc.confidence_below}`);\n    else checks.push(`confidence ${conf.toFixed(2)} ≥ ${esc.confidence_below}`);\n  }\n  const fraud = ctx.fraud_score;\n  if (fraud !== undefined && fraud !== null && 'fraud_score_above' in esc && fraud > esc.fraud_score_above) {\n    reasons.push(`payment fraud score ${fraud.toFixed(2)} > ${esc.fraud_score_above}`);\n  }\n  if ((esc.option_risk || []).includes(option.risk)) reasons.push(`option risk is ${option.risk}`);\n\n  const total = steps.reduce((t, s) => t + (Number(s.est_cost) || 0), 0);\n  if ('max_option_cost' in p && total > p.max_option_cost) {\n    reasons.push(`total cost ₹${fmt(total)} > ₹${fmt(p.max_option_cost)}`);\n  }\n\n  for (const s of steps) {\n    const t = s.type;\n    const cost = Number(s.est_cost) || 0;\n    if (always.has(t)) { reasons.push(`${t} always needs approval`); continue; }\n    if (!(t in auto)) { reasons.push(`${t} is not auto-executable`); continue; }\n    const rule = auto[t] || {};\n    const lim = rule.max_extra_cost ?? rule.max_cost;\n    if (lim !== undefined && lim !== null) {\n      if (cost > lim) reasons.push(`${t} cost ₹${fmt(cost)} > limit ₹${fmt(lim)}`);\n      else checks.push(`${t} cost ₹${fmt(cost)} ≤ ₹${fmt(lim)}`);\n    }\n    if ('max_attempts' in rule) {\n      const n = ctx.payment_attempts || 0;\n      if (n >= rule.max_attempts) reasons.push(`already ${n} payment attempts (max ${rule.max_attempts})`);\n      else checks.push(`${n} prior attempts < ${rule.max_attempts}`);\n    }\n    if ('fraud_score_below' in rule) {\n      const f = ctx.fraud_score;\n      if (f === undefined || f === null || f >= rule.fraud_score_below) reasons.push(`fraud score ${f ?? 'None'} ≥ ${rule.fraud_score_below}`);\n      else checks.push(`fraud score ${f} < ${rule.fraud_score_below}`);\n    }\n  }\n  return { auto: reasons.length === 0, reasons, checks };\n}\n\n// ---- n8n entry (ignored by the parity test) ----\nif (typeof $input !== 'undefined') {\n  const d = $input.first().json;\n  const verdicts = d.options.map((o) => evaluate(o, d.context, d.policy));\n  return [{ json: {\n    exception_id: d.exception_id,\n    options: d.options,\n    context: d.context,\n    containment: d.containment || [],\n    verdicts,\n    top_auto: verdicts[0].auto,\n  } }];\n}\nif (typeof module !== 'undefined') module.exports = { evaluate };\n"
+      }
+    },
+    {
+      "id": "721a6058-fedb-5d38-9d7c-e0acccbbf017",
+      "name": "Hold the order first?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4080,
+        -60
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "65713ba6-249a-559f-9757-aef8b7c9ed15",
+              "leftValue": "={{ $json.containment.length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "02f6ac04-204e-5333-9329-fdd3b9ae102b",
+      "name": "Each protective step",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        4320,
+        -200
+      ],
+      "parameters": {
+        "fieldToSplitOut": "containment",
+        "destinationFieldName": "step",
+        "options": {}
+      }
+    },
+    {
+      "id": "c77e6208-446a-58dc-86ea-afb4c2e884dd",
+      "name": "Hold order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4560,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/step",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ step: $json.step || ($json.type ? { type: $json.type, params: $json.params } : $json.containment), kind: 'containment' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "de3540aa-3ba3-5559-8b3f-00b15fa69733",
+      "name": "Back to the decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4800,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: $('Apply approval policy').first().json }];"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "59476f58-20b8-583f-aa30-d52a40dbbea5",
+      "name": "Save options and decide",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5040,
+        -60
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/exceptions/{{ $('Claim exception').first().json.id }}/decide",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ options: $json.options, verdicts: $json.verdicts, context: $json.context, resume_url: $execution.resumeUrl }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "a92afda6-1d8a-5803-bee5-3ca57a80806b",
+      "name": "Policy allows auto-fix?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5280,
+        -60
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cf6f96d2-ad4a-5b3d-b5ac-73c9f574aae1",
+              "leftValue": "={{ $json.auto }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "92b76174-620c-52e5-93b9-8191f8c0cf6d",
+      "name": "Fix it automatically",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5520,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/actions/{{ $json.action_id }}/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ by: 'agent' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "b7f8e8b7-0baf-53d7-9c28-5d4374b455a9",
+      "name": "Slack webhook set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5520,
+        80
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "37d9e885-5cdc-5685-bbd6-1b869ffea8ec",
+              "leftValue": "={{ $env.OEA_SLACK_WEBHOOK_URL || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "2d68fcfc-b203-52ec-9e8b-0d787c1d677f",
+      "name": "Ping the ops channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5760,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $('Save options and decide').first().json.notify_text }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c4bb4a01-c80c-5e1d-8ba8-1fe8f9e412ec",
+      "name": "Wait for a person",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6000,
+        80
+      ],
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "options": {}
+      },
+      "webhookId": "76f51be3-29cc-5411-a205-719cba0d4b3b"
+    },
+    {
+      "id": "eb57b25e-02ed-569f-a3fe-6a58c514d6d6",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6240,
+        80
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8e41745a-6879-5afe-9064-210e61800fe8",
+              "leftValue": "={{ $json.body.verdict }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "237ee95a-aed5-5e26-afa6-a8cf5725c2b3",
+      "name": "Run the approved fix",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6480,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OEA_API_URL || 'http://127.0.0.1:8001' }}/n8n/actions/{{ $json.body.action_id }}/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ by: $json.body.by || 'human', steps: $json.body.steps || null }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "93a70124-9b42-5c1e-b34a-ece341412c23",
+      "name": "Closed without action",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        6480,
+        180
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "From detector": {
+      "main": [
+        [
+          {
+            "node": "Claim exception",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-investigate (webhook)": {
+      "main": [
+        [
+          {
+            "node": "Read exception id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read exception id": {
+      "main": [
+        [
+          {
+            "node": "Claim exception",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim exception": {
+      "main": [
+        [
+          {
+            "node": "Not already handled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not already handled?": {
+      "main": [
+        [
+          {
+            "node": "Which systems to check?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Each SKU": {
+      "main": [
+        [
+          {
+            "node": "Check stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check stock": {
+      "main": [
+        [
+          {
+            "node": "Check delivery promise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check delivery date": {
+      "main": [
+        [
+          {
+            "node": "Check supplier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which systems to check?": {
+      "main": [
+        [
+          {
+            "node": "Each SKU",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check delivery date",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check payment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check pricing rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check delivery promise": {
+      "main": [
+        [
+          {
+            "node": "Look up past cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check supplier": {
+      "main": [
+        [
+          {
+            "node": "Look up past cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check payment": {
+      "main": [
+        [
+          {
+            "node": "Look up past cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check pricing rules": {
+      "main": [
+        [
+          {
+            "node": "Look up past cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look up past cases": {
+      "main": [
+        [
+          {
+            "node": "Build Claude request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Claude request": {
+      "main": [
+        [
+          {
+            "node": "Claude switched on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude switched on?": {
+      "main": [
+        [
+          {
+            "node": "Ask Claude",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rule playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Claude": {
+      "main": [
+        [
+          {
+            "node": "Read Claude's answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Claude's answer": {
+      "main": [
+        [
+          {
+            "node": "Claude answered?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude answered?": {
+      "main": [
+        [
+          {
+            "node": "Check and record diagnosis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rule playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rule playbook": {
+      "main": [
+        [
+          {
+            "node": "Check and record diagnosis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check and record diagnosis": {
+      "main": [
+        [
+          {
+            "node": "Diagnosis valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Diagnosis valid?": {
+      "main": [
+        [
+          {
+            "node": "Apply approval policy",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rule playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply approval policy": {
+      "main": [
+        [
+          {
+            "node": "Hold the order first?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hold the order first?": {
+      "main": [
+        [
+          {
+            "node": "Each protective step",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save options and decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Each protective step": {
+      "main": [
+        [
+          {
+            "node": "Hold order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hold order": {
+      "main": [
+        [
+          {
+            "node": "Back to the decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Back to the decision": {
+      "main": [
+        [
+          {
+            "node": "Save options and decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save options and decide": {
+      "main": [
+        [
+          {
+            "node": "Policy allows auto-fix?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Policy allows auto-fix?": {
+      "main": [
+        [
+          {
+            "node": "Fix it automatically",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack webhook set?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack webhook set?": {
+      "main": [
+        [
+          {
+            "node": "Ping the ops channel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait for a person",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ping the ops channel": {
+      "main": [
+        [
+          {
+            "node": "Wait for a person",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for a person": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Run the approved fix",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Closed without action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [],
+  "versionId": "068c6836-00b7-578f-95e3-13376a780029"
+}

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+data/*.db
+data/*.db-wal
+data/*.db-shm
+node_modules/
+dist/
+.n8n-data/
+.oea-ready
