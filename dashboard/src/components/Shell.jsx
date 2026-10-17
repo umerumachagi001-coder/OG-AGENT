@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { signOut } from "../auth";
+import VoiceAssistant from "./VoiceAssistant";
 import { go, useStore } from "../store";
 import { Button, ConfirmDialog } from "./ui";
 
@@ -173,6 +174,8 @@ export function TopBar() {
             className="w-28 rounded-lg bg-deck px-2.5 py-1.5 text-[14px] text-ink ring-1 ring-line focus:ring-signal" />
         </label>
       )}
+
+      <VoiceAssistant />
 
       <div className="relative" ref={ref}>
         <Button kind="warn" onClick={() => setMenu((m) => !m)} aria-expanded={menu} aria-haspopup="menu" disabled={!ok}>

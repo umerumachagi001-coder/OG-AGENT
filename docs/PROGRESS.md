@@ -10,6 +10,12 @@
 
 ---
 
+## 2026-10-17 — Hackathon day: repo, Supabase live, voice assistant (ADR-014)
+- GitHub repo cleaned up: complete project at the root, old copies removed (tags `safe-point-1`, `safe-point-2`). Parity test fixed for Windows encoding. 45 tests passed on the Windows laptop.
+- Supabase live check passed on the real project: sign-in with a real account, case records copied.
+- Voice assistant (Sarvam, English + Hindi): `orchestrator/voice_api.py`, `dashboard/src/components/VoiceAssistant.jsx`. Read-only; opens cases, never approves. 50 tests; browser-tested with a simulated mic and Sarvam stand-in; n8n e2e passes.
+- Known small race: if n8n's 10 s scan catches a triggered failure first, Trigger shows "already open". Harmless; follow-up.
+
 ## 2026-10-16 — Ops-lead walkthrough (exploratory test as a user)
 - Played a full shift on the n8n stack with sign-in on: 4 failures at once, triage, fraud rejected, pricing typo then fix, two screens approving together, undo with double-clicks, reset while n8n waited, session expiry, backend outage + recovery, phone width, plus API misuse and race probes.
 - Fixed: simultaneous Undo reversed the stock move 3× (now one at a time per case + services undo takes the write lock); a late Reject rewrote a resolved case; n8n mode accepted invalid/empty edited steps; a failed option (e.g. mistyped price) became a dead end; Reset demo briefly returned 500s while tables were rebuilt (now built aside and swapped in one step); n8n-mode failure message lacked the reason; a bad case link showed raw JSON.

@@ -17,7 +17,8 @@ export const SERVICES =
   API.replace(/:8001\b/, ":8000");
 
 async function req(base, method, path, body) {
-  const headers = body ? { "Content-Type": "application/json" } : {};
+  const raw = typeof Blob !== "undefined" && body instanceof Blob;   // e.g. a voice recording, sent as-is
+  const headers = body ? { "Content-Type": raw ? (body.type || "application/octet-stream") : "application/json" } : {};
   if (base === API) {
     const token = await accessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -27,7 +28,7 @@ async function req(base, method, path, body) {
     res = await fetch(base + path, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: raw ? body : body ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new Error(`Can't reach ${base}. Is the backend running (python scripts/dev.py)?`);
@@ -59,6 +60,9 @@ export const api = {
   approve: (actionId, by, steps) => o("POST", `/actions/${actionId}/approve`, { by, steps }),
   reject: (actionId, by, feedback) => o("POST", `/actions/${actionId}/reject`, { by, feedback }),
   undo: (id, by, reason) => o("POST", `/exceptions/${id}/undo`, { by, reason }),
+  voiceConfig: () => o("GET", "/voice/config"),
+  voiceAsk: (recording) => o("POST", "/voice/ask", recording),
+  voiceText: (text, context) => o("POST", "/voice/text", { text, context: context || null }),
   metrics: () => o("GET", "/metrics"),
   scenarios: () => o("GET", "/scenarios"),
   trigger: (name) => o("POST", `/trigger?fail=${encodeURIComponent(name)}`),

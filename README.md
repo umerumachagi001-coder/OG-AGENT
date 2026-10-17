@@ -130,6 +130,7 @@ Everything works without changes. Fill in only what you want:
 | `OEA_ENGINE` | `n8n` (default) or `python` (built-in engine, no n8n). |
 | `SUPABASE_PUBLISHABLE_KEY` | Dashboard sign-in with Supabase accounts. |
 | `SUPABASE_SECRET_KEY` | Copies every case record to your Supabase project. Backend only; never commit it. |
+| `SARVAM_API_KEY` | Voice assistant: a mic button to ask about cases by voice in English or Hindi (Sarvam AI). |
 
 Supabase setup (run the SQL, keys, creating accounts): [`supabase/README.md`](supabase/README.md).
 
@@ -163,6 +164,8 @@ On your first visit to n8n, it asks you to **create an owner account**. This is 
 3. Open an automatically fixed case and click **Undo this fix** to reverse it.
 4. Watch the runs in n8n under **Executions**.
 5. **Reset demo** restores the clean starting state.
+
+**Voice (if `SARVAM_API_KEY` is set):** click **Ask** in the top bar and say "What needs my attention?", "Explain order 1002", "Approve order 1002" or "How are we doing?", in English or Hindi. It answers out loud from the live case data. Voice can open a case for approval but never approves: you confirm on screen. The browser asks for microphone permission the first time.
 
 Or drive it from a terminal while the stack is running:
 

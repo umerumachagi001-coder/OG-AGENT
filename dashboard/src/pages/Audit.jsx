@@ -4,6 +4,7 @@ import { Button, Chip, Empty, ErrorNote, Loading, Panel } from "../components/ui
 import { auditEvents } from "../derive";
 import { TOOL, dateTimeSec } from "../format";
 import { useStore } from "../store";
+import { printAuditReport } from "../auditReport";
 
 const TYPES = { investigation: "Investigation", policy: "Policy decision", approval: "Approval / rejection", action: "Action",
   escalation: "Escalation", failure: "Failure / fallback", notification: "Notification", system: "System action log" };
@@ -12,7 +13,7 @@ const STATUS_TONE = { completed: "good", approved: "good", "auto-approved": "goo
   escalated: "warn", "needs approval": "warn", fallback: "warn", corrected: "live", skipped: "muted" };
 
 export default function Audit() {
-  const { exceptions } = useStore();
+  const { exceptions, approver } = useStore();
   const [events, setEvents] = useState(null);
   const [log, setLog] = useState(null);
   const [logError, setLogError] = useState(null);
@@ -65,6 +66,11 @@ export default function Audit() {
         <input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search order, person, text" aria-label="Search audit events"
           className="min-w-[240px] rounded-lg bg-deck px-3 py-1.5 text-[14px] text-ink placeholder:text-dim ring-1 ring-line focus:ring-signal" />
         <Button size="sm" onClick={() => setN((x) => x + 1)} className="ml-auto">Refresh</Button>
+        <Button size="sm" kind="primary" disabled={events == null || !rows.length} title="Opens the print dialog: choose “Save as PDF”"
+          onClick={() => printAuditReport({ exceptions, rows, exportedBy: approver,
+            filterLabel: [type === "all" ? "All event types" : TYPES[type], term.trim() && `search “${term.trim()}”`].filter(Boolean).join(", ") })}>
+          Download PDF
+        </Button>
       </div>
       {logError && <ErrorNote error={{ message: `System action log unavailable: ${logError.message}` }} onRetry={() => setN((x) => x + 1)} />}
 

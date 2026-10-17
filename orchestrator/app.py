@@ -20,6 +20,7 @@ Endpoints (all JSON):
     POST /actions/{id}/reject    {"by": "...", "feedback": "..."}
     POST /exceptions/{id}/undo   {"by": "...", "reason": "..."}   reverse an automatic fix (FR-15)
     /auth/*, /supabase/*                                Supabase sign-in + record copy (orchestrator/auth_api.py)
+    GET /voice/config · POST /voice/ask                 Sarvam voice assistant (orchestrator/voice_api.py)
     POST /detect                                        run the detector now
     GET  /metrics                                       FR-19 numbers for the metrics strip
     GET  /scenarios · POST /trigger?fail=sc1 · POST /reset · GET /orders   (proxied to services)
@@ -44,7 +45,7 @@ import httpx
 
 from agent import runner, store
 from agent.tools import Services, ToolError, validate_step
-from orchestrator import auth_api, n8n_bridge
+from orchestrator import auth_api, n8n_bridge, voice_api
 from orchestrator import supabase_integration as supabase
 from services.detector.rules import detect_once
 
@@ -172,6 +173,7 @@ app.middleware("http")(auth_api.require_login)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(n8n_bridge.router)
 app.include_router(auth_api.router)
+app.include_router(voice_api.router)       # Sarvam voice assistant; off unless SARVAM_API_KEY is set
 n8n_bridge.svc = lambda: svc()
 n8n_bridge.is_paused = lambda: State.paused.is_set()
 
